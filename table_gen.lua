@@ -3,6 +3,11 @@ local M = {}
 local table_insert, table_concat, string_rep, string_len, string_sub = table.insert, table.concat, string.rep, string.len, string.sub
 local math_max, math_floor, math_ceil = math.max, math.floor, math.ceil
 
+local function len(str)
+	local _, count = string.gsub(tostring(str), "[^\128-\193]", "")
+	return count
+end
+
 local styles = {
 	--					 1    2     3    4    5     6    7    8     9    10   11
 	["ASCII"] = {"-", "|", "+"},
@@ -24,13 +29,13 @@ end
 
 local function justify_center(text, width)
 	text = string_sub(text, 1, width)
-	local len = string_len(text)
-	return string_rep(" ", math_floor(width/2-len/2)) .. text .. string_rep(" ", math_ceil(width/2-len/2))
+	local length = len(text)
+	return string_rep(" ", math_floor(width/2-length/2)) .. text .. string_rep(" ", math_ceil(width/2-length/2))
 end
 
 local function justify_left(text, width)
 	text = string_sub(text, 1, width)
-	return text .. string_rep(" ", width-string_len(text))
+	return text .. string_rep(" ", width-len(text))
 end
 
 function M.generate_table(rows, headings, options)
@@ -59,7 +64,7 @@ function M.generate_table(rows, headings, options)
 
 	if has_headings then
 		for i=1, #headings do
-			columns_width[i] = string_len(headings[i])+2
+			columns_width[i] = len(headings[i])+2
 		end
 	else
 		for i=1, #rows[1] do
@@ -69,7 +74,7 @@ function M.generate_table(rows, headings, options)
 	for i=1, #rows do
 		local row = rows[i]
 		for c=1, #row do
-			columns_width[c] = math_max(columns_width[c], string_len(row[c])+2)
+			columns_width[c] = math_max(columns_width[c], len(row[c])+2)
 		end
 	end
 
@@ -82,10 +87,11 @@ function M.generate_table(rows, headings, options)
 	end
 
 	if has_headings then
+		local headings_justified = {}
 		for i=1, #headings do
-			headings[i] = justify_center(headings[i], columns_width[i])
+			headings_justified[i] = justify_center(headings[i], columns_width[i])
 		end
-		table_insert(rows_out, seperators[2] .. table_concat(headings, seperators[2]) .. seperators[2])
+		table_insert(rows_out, seperators[2] .. table_concat(headings_justified, seperators[2]) .. seperators[2])
 		if options.header_seperator_line then
 			table_insert(rows_out, seperators[6] .. table_concat(column_seperator_rows, seperators[7]) .. seperators[8])
 		end
@@ -93,10 +99,15 @@ function M.generate_table(rows, headings, options)
 
 	for i=1, #rows do
 		local row = rows[i]
-		for j=1, #row do
-			row[j] = " " .. justify_left(row[j], columns_width[j]-2) .. " "
+		if #row == 0 then
+			table_insert(rows_out, seperators[6] .. table_concat(column_seperator_rows, seperators[7]) .. seperators[8])
+		else
+			for j=1, #row do
+				local justified = options.value_justify == "center" and justify_center(row[j], columns_width[j]-2) or justify_left(row[j], columns_width[j]-2)
+				row[j] = " " .. justified .. " "
+			end
+			table_insert(rows_out, seperators[2] .. table_concat(row, seperators[2]) .. seperators[2])
 		end
-		table_insert(rows_out, seperators[2] .. table_concat(row, seperators[2]) .. seperators[2])
 	end
 
 	if options.bottom_line and seperators[9] then
