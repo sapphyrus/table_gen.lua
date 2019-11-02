@@ -59,27 +59,29 @@ function M.generate_table(rows, headings, options)
 
 	local seperators = styles[options.style] or styles["ASCII"]
 
-	local rows_out, columns_width = {}, {}
+	local rows_out, columns_width, columns_count = {}, {}, 0
 	local has_headings = headings ~= nil and #headings > 0
 
 	if has_headings then
 		for i=1, #headings do
 			columns_width[i] = len(headings[i])+2
 		end
+		columns_count = #headings
 	else
-		for i=1, #rows[1] do
-			columns_width[i] = 2
+		for i=1, #rows do
+			columns_count = math_max(columns_count, #rows[i])
 		end
 	end
+
 	for i=1, #rows do
 		local row = rows[i]
-		for c=1, #row do
-			columns_width[c] = math_max(columns_width[c], len(row[c])+2)
+		for c=1, columns_count do
+			columns_width[c] = math_max(columns_width[c] or 2, len(row[c])+2)
 		end
 	end
 
 	local column_seperator_rows = {}
-	for i=1, #columns_width do
+	for i=1, columns_count do
 		table_insert(column_seperator_rows, string_rep(seperators[1], columns_width[i]))
 	end
 	if options.top_line then
@@ -88,7 +90,7 @@ function M.generate_table(rows, headings, options)
 
 	if has_headings then
 		local headings_justified = {}
-		for i=1, #headings do
+		for i=1, columns_count do
 			headings_justified[i] = justify_center(headings[i], columns_width[i])
 		end
 		table_insert(rows_out, seperators[2] .. table_concat(headings_justified, seperators[2]) .. seperators[2])
@@ -98,15 +100,15 @@ function M.generate_table(rows, headings, options)
 	end
 
 	for i=1, #rows do
-		local row = rows[i]
+		local row, row_out = rows[i], {}
 		if #row == 0 then
 			table_insert(rows_out, seperators[6] .. table_concat(column_seperator_rows, seperators[7]) .. seperators[8])
 		else
-			for j=1, #row do
-				local justified = options.value_justify == "center" and justify_center(row[j], columns_width[j]-2) or justify_left(row[j], columns_width[j]-2)
-				row[j] = " " .. justified .. " "
+			for j=1, columns_count do
+				local justified = options.value_justify == "center" and justify_center(row[j] or "", columns_width[j]-2) or justify_left(row[j] or "", columns_width[j]-2)
+				row_out[j] = " " .. justified .. " "
 			end
-			table_insert(rows_out, seperators[2] .. table_concat(row, seperators[2]) .. seperators[2])
+			table_insert(rows_out, seperators[2] .. table_concat(row_out, seperators[2]) .. seperators[2])
 		end
 	end
 
